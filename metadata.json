@@ -1,0 +1,6 @@
+{
+  "name": "SilvaTwin - Gemelo Digital Forestal",
+  "description": "Plataforma científica de Gemelo Digital Forestal a escala de paisaje (10³–10⁵ ha) con asimilación GEDI LiDAR, Sentinel-1/2, modelo ecofisiológico 3-PG, Deep Learning híbrido, riesgo de incendios y simulación de manejo adaptativo.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
