@@ -241,6 +241,31 @@ export interface Simulation3PGResponse {
   results: Simulation3PGOutputPoint[];
 }
 
+export interface AGBPredictRequest {
+  rh98_m: number;
+  ndvi: number;
+  savi: number;
+  ndwi: number;
+  fmc_pct: number;
+  vpd_kpa: number;
+}
+
+export interface AGBPredictResponse {
+  agb_pred_mgc_ha: number;
+  pure_3pg_estimate_mgc_ha: number;
+  hybrid_residual_correction: number;
+  ci_95_lower: number;
+  ci_95_upper: number;
+  model_version: string;
+  scientific_basis: string;
+  input_parameters?: Record<string, number>;
+  agbPredMgCHa?: number;
+  pure3pgEstimateMgCHa?: number;
+  hybridResidualCorrection?: number;
+  ci95Lower?: number;
+  ci95Upper?: number;
+}
+
 export interface StandTelemetryInput {
   stand_id: string;
   region_name: string;
