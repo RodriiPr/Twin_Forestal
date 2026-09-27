@@ -7,13 +7,13 @@ import {
   Flame,
   GitBranch,
   ShieldCheck,
-  FileCode2,
-  Sparkles,
+  Network,
   RefreshCw,
   Globe2,
   Sun,
   Moon,
   Languages,
+  Database,
 } from 'lucide-react';
 import { LandscapeRegion } from '../types';
 import { useTheme } from '../context/ThemeContext';
@@ -27,6 +27,8 @@ interface HeaderProps {
   onSelectTab: (tabId: string) => void;
   isSimulating: boolean;
   onToggleSimulation: () => void;
+  isSyncing?: boolean;
+  standsCount?: number;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -37,6 +39,8 @@ export const Header: React.FC<HeaderProps> = ({
   onSelectTab,
   isSimulating,
   onToggleSimulation,
+  isSyncing = false,
+  standsCount = 0,
 }) => {
   const { theme, toggleTheme } = useTheme();
   const { language, setLanguage, t } = useLanguage();
@@ -49,8 +53,7 @@ export const Header: React.FC<HeaderProps> = ({
     { id: 'wildfire-risk', label: t.tabWildfireRisk, icon: Flame },
     { id: 'scenarios', label: t.tabScenarios, icon: GitBranch },
     { id: 'validation', label: t.tabValidation, icon: ShieldCheck },
-    { id: 'deliverables', label: t.tabDeliverables, icon: FileCode2 },
-    { id: 'ai-advisor', label: t.tabAIAdvisor, icon: Sparkles },
+    { id: 'crisp-semantic', label: t.tabCrispSemantic, icon: Network },
   ];
 
   const isDark = theme === 'dark';
@@ -105,6 +108,18 @@ export const Header: React.FC<HeaderProps> = ({
                 </option>
               ))}
             </select>
+
+            {isSyncing ? (
+              <span className="flex items-center gap-1 text-[10px] font-mono text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/25 animate-pulse">
+                <RefreshCw className="w-2.5 h-2.5 animate-spin" />
+                <span className="hidden xl:inline">Sincronizando...</span>
+              </span>
+            ) : standsCount > 0 ? (
+              <span className="flex items-center gap-1 text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/25" title={`${standsCount} rodales cargados desde base de datos`}>
+                <Database className="w-2.5 h-2.5 text-emerald-400" />
+                <span>{standsCount} rodales</span>
+              </span>
+            ) : null}
           </div>
 
           <div className="flex gap-4 text-xs font-mono">

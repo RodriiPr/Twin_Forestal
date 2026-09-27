@@ -1,7 +1,4 @@
-import React, { useState, useEffect } from 'react';
-import { LANDSCAPE_REGIONS } from './data/mockScientificData';
-import { LandscapeRegion } from './types';
-import { ForestTwinAPI } from './services/api';
+import React, { useState } from 'react';
 import { Header } from './components/Header';
 import { Landscape2DMap } from './components/Landscape2DMap';
 import { Canopy3DProfile } from './components/Canopy3DProfile';
@@ -13,29 +10,24 @@ import { UncertaintyValidation } from './components/UncertaintyValidation';
 import { ScientificDeliverables } from './components/ScientificDeliverables';
 import { AIEcologistAssistant } from './components/AIEcologistAssistant';
 import { FloatingChatbot } from './components/FloatingChatbot';
-import { Play, Pause, FastForward, Rewind } from 'lucide-react';
+import { FastForward, Rewind } from 'lucide-react';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
 import { LanguageProvider, useLanguage } from './context/LanguageContext';
+import { RegionDataProvider, useRegionData } from './context/RegionDataContext';
 
 function AppContent() {
-  const [regions, setRegions] = useState<LandscapeRegion[]>(LANDSCAPE_REGIONS);
-  const [selectedRegion, setSelectedRegion] = useState<LandscapeRegion>(LANDSCAPE_REGIONS[0]);
+  const {
+    regions,
+    currentRegion,
+    stands,
+    selectedStand,
+    isSyncing,
+    selectRegion,
+  } = useRegionData();
+
   const [activeTab, setActiveTab] = useState<string>('landscape-2d');
   const [isSimulating, setIsSimulating] = useState<boolean>(true);
   const [timelineYear, setTimelineYear] = useState<number>(2024);
-
-  useEffect(() => {
-    let isMounted = true;
-    ForestTwinAPI.getRegions().then((fetchedRegions) => {
-      if (isMounted && fetchedRegions && fetchedRegions.length > 0) {
-        setRegions(fetchedRegions);
-        setSelectedRegion(fetchedRegions[0]);
-      }
-    });
-    return () => {
-      isMounted = false;
-    };
-  }, []);
 
   const { theme } = useTheme();
   const { t } = useLanguage();
@@ -56,53 +48,63 @@ function AppContent() {
         }}
       />
 
-      {/* Scientific Navigation Header */}
+      {/* Scientific Navigation Header with 8 Modules */}
       <Header
-        currentRegion={selectedRegion}
+        currentRegion={currentRegion}
         allRegions={regions}
-        onSelectRegion={(reg) => setSelectedRegion(reg)}
+        onSelectRegion={(reg) => selectRegion(reg)}
         activeTab={activeTab}
         onSelectTab={(tabId) => setActiveTab(tabId)}
         isSimulating={isSimulating}
         onToggleSimulation={() => setIsSimulating(!isSimulating)}
+        isSyncing={isSyncing}
+        standsCount={stands.length}
       />
 
       {/* Main Scientific Content Viewport */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-3 sm:p-5 lg:p-6 space-y-6 relative z-10">
+        {/* Módulo 1: Monitor de Paisaje & Telemetría Multifuente */}
         {activeTab === 'landscape-2d' && (
-          <Landscape2DMap region={selectedRegion} />
+          <Landscape2DMap region={currentRegion} />
         )}
 
+        {/* Módulo 2: Estructura 3D del Dosel & Alometría Forestal */}
         {activeTab === 'canopy-3d' && (
-          <Canopy3DProfile region={selectedRegion} />
+          <Canopy3DProfile region={currentRegion} />
         )}
 
+        {/* Módulo 3: Motor Biofísico 3-PG & Dinámica de Carbono */}
         {activeTab === '3pg-physio' && (
-          <Ecophysiological3PG region={selectedRegion} />
+          <Ecophysiological3PG region={currentRegion} />
         )}
 
+        {/* Módulo 4: Deep Learning Híbrido & Stacking Predictivo (H1) */}
         {activeTab === 'hybrid-dl' && (
-          <HybridDeepLearning region={selectedRegion} />
+          <HybridDeepLearning region={currentRegion} />
         )}
 
+        {/* Módulo 5: Motor de Riesgo de Incendios & Combustibles (Aragoneses et al., 2024) */}
         {activeTab === 'wildfire-risk' && (
-          <WildfireRiskEngine region={selectedRegion} />
+          <WildfireRiskEngine region={currentRegion} />
         )}
 
+        {/* Módulo 6: Simulador de Manejo Adaptativo & Trade-offs (H3) */}
         {activeTab === 'scenarios' && (
-          <ScenarioSimulator region={selectedRegion} />
+          <ScenarioSimulator region={currentRegion} />
         )}
 
+        {/* Módulo 7: Validación de Incertidumbre Bayesiana & Hipótesis (H1–H3) */}
         {activeTab === 'validation' && (
           <UncertaintyValidation />
         )}
 
-        {activeTab === 'deliverables' && (
-          <ScientificDeliverables />
+        {/* Módulo 8: Metodología CRISP-DM & Asistente Semántico (Dao et al., 2025) */}
+        {(activeTab === 'crisp-semantic' || activeTab === 'deliverables') && (
+          <ScientificDeliverables region={currentRegion} activeStand={selectedStand} />
         )}
 
         {activeTab === 'ai-advisor' && (
-          <AIEcologistAssistant region={selectedRegion} />
+          <AIEcologistAssistant region={currentRegion} />
         )}
       </main>
 
@@ -144,14 +146,14 @@ function AppContent() {
               {t.dataLake}
             </button>
             <button
-              onClick={() => setActiveTab('deliverables')}
+              onClick={() => setActiveTab('crisp-semantic')}
               className={`font-bold transition-colors ${
-                activeTab === 'deliverables'
+                activeTab === 'crisp-semantic' || activeTab === 'deliverables'
                   ? 'text-emerald-500'
                   : isDark ? 'text-zinc-500 hover:text-zinc-300' : 'text-slate-500 hover:text-slate-800'
               }`}
             >
-              {t.export}
+              CRISP-DM & LANGFLOW
             </button>
           </div>
 
@@ -197,7 +199,7 @@ function AppContent() {
       </footer>
 
       {/* Floating AI Chatbot Widget */}
-      <FloatingChatbot region={selectedRegion} />
+      <FloatingChatbot region={currentRegion} activeStand={selectedStand} />
     </div>
   );
 }
@@ -206,7 +208,9 @@ export function App() {
   return (
     <ThemeProvider>
       <LanguageProvider>
-        <AppContent />
+        <RegionDataProvider>
+          <AppContent />
+        </RegionDataProvider>
       </LanguageProvider>
     </ThemeProvider>
   );
