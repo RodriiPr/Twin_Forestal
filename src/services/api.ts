@@ -384,6 +384,21 @@ export const ForestTwinAPI = {
   },
 
   /**
+   * Obtiene las métricas de validación científica formal (H1, H2, H3, reducción 34.8% de incertidumbre)
+   */
+  async getScientificMetrics(): Promise<any> {
+    try {
+      const res = await fetchWithTimeout(`${API_BASE}/validation/scientific-metrics`);
+      if (res.ok) {
+        return await res.json();
+      }
+    } catch (e) {
+      console.warn('[SilvaTwin API] Backend /validation/scientific-metrics desconectado.');
+    }
+    return null;
+  },
+
+  /**
    * Consulta al asistente de IA con contexto científico
    */
   async askAiAdvisor(prompt: string, context: Record<string, any> = {}): Promise<string> {
@@ -410,3 +425,4 @@ export const ForestTwinAPI = {
     );
   },
 };
+
