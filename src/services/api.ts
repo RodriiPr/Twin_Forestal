@@ -10,6 +10,7 @@ import {
   SemanticDecisionOutput,
   LangflowFlowSchema,
   CrispDmOverview,
+  MonthlyFluxPoint,
 } from '../types';
 import {
   LANDSCAPE_REGIONS,
@@ -151,6 +152,43 @@ export const ForestTwinAPI = {
       }
     }
     return generated;
+  },
+
+  /**
+   * Obtiene la serie temporal de flujos de carbono (3-PG, Híbrido, FLUXNET) para una región
+   */
+  async getFluxTimeSeries(regionId: string): Promise<MonthlyFluxPoint[]> {
+    try {
+      const res = await fetchWithTimeout(`${API_BASE}/simulations/flux-timeseries/${regionId}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) {
+          return data.map((d: any) => ({
+            month: d.month,
+            timestamp: d.timestamp,
+            tempC: d.tempC ?? d.temp_c ?? 0,
+            precipMm: d.precipMm ?? d.precip_mm ?? 0,
+            vpdKPa: d.vpdKPa ?? d.vpd_kpa ?? 0,
+            radMJm2: d.radMJm2 ?? d.rad_mj_m2 ?? 0,
+            pg3_gpp: d.pg3_gpp ?? 0,
+            pg3_nee: d.pg3_nee ?? 0,
+            pg3_reco: d.pg3_reco ?? 0,
+            pg3_agb: d.pg3_agb ?? 0,
+            hybrid_gpp: d.hybrid_gpp ?? 0,
+            hybrid_nee: d.hybrid_nee ?? 0,
+            hybrid_reco: d.hybrid_reco ?? 0,
+            hybrid_ci_upper: d.hybrid_ci_upper ?? 0,
+            hybrid_ci_lower: d.hybrid_ci_lower ?? 0,
+            fluxnet_gpp: d.fluxnet_gpp ?? 0,
+            fluxnet_nee: d.fluxnet_nee ?? 0,
+            fluxnet_reco: d.fluxnet_reco ?? 0,
+          }));
+        }
+      }
+    } catch (e) {
+      console.warn(`[SilvaTwin API] Backend no respondió para serie temporal de ${regionId}, usando serie científica mock.`);
+    }
+    return MOCK_FLUX_TIMESERIES;
   },
 
   /**

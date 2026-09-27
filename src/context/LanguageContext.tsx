@@ -24,6 +24,7 @@ export interface Translations {
   tabWildfireRisk: string;
   tabScenarios: string;
   tabValidation: string;
+  tabCrispSemantic: string;
   tabDeliverables: string;
   tabAIAdvisor: string;
 
@@ -58,13 +59,14 @@ const translations: Record<Language, Translations> = {
     themeToggleLight: 'Cambiar a Modo Oscuro',
     languageSelect: 'Idioma / Language',
 
-    tabLandscape2D: 'Cubo 2D & Satélite',
-    tabCanopy3D: 'Estructura 3D GEDI',
-    tab3PGPhysio: 'Modelo 3-PG',
-    tabHybridDL: 'Deep Learning Híbrido',
-    tabWildfireRisk: 'Riesgo de Incendio',
-    tabScenarios: 'Manejo Adaptativo (50a)',
-    tabValidation: 'Validación & Incertidumbre',
+    tabLandscape2D: 'Monitor de Paisaje & Telemetría',
+    tabCanopy3D: 'Estructura 3D del Dosel & Alometría',
+    tab3PGPhysio: 'Motor Ecofisiológico 3-PG & Carbono',
+    tabHybridDL: 'Deep Learning Híbrido & Stacking (H1)',
+    tabWildfireRisk: 'Riesgo de Incendios & Combustibles',
+    tabScenarios: 'Simulador de Manejo Adaptativo (H3)',
+    tabValidation: 'Validación Bayesiana & Hipótesis (H1–H3)',
+    tabCrispSemantic: 'Metodología CRISP-DM & Semántica',
     tabDeliverables: 'Paper & Código Fuente',
     tabAIAdvisor: 'Asistente IA Gemini',
 
@@ -95,13 +97,14 @@ const translations: Record<Language, Translations> = {
     themeToggleLight: 'Switch to Dark Mode',
     languageSelect: 'Language / Idioma',
 
-    tabLandscape2D: '2D Cube & Satellite',
-    tabCanopy3D: '3D GEDI Structure',
-    tab3PGPhysio: '3-PG Model',
-    tabHybridDL: 'Hybrid Deep Learning',
-    tabWildfireRisk: 'Wildfire Risk',
-    tabScenarios: 'Adaptive Management (50y)',
-    tabValidation: 'Validation & Uncertainty',
+    tabLandscape2D: 'Landscape Monitor & Telemetry',
+    tabCanopy3D: '3D Canopy Structure & Allometry',
+    tab3PGPhysio: '3-PG Ecophysiological Engine & Carbon',
+    tabHybridDL: 'Hybrid Deep Learning & Stacking (H1)',
+    tabWildfireRisk: 'Wildfire Risk & Fuels Engine',
+    tabScenarios: 'Adaptive Management Simulator (H3)',
+    tabValidation: 'Bayesian Uncertainty Validation (H1–H3)',
+    tabCrispSemantic: 'CRISP-DM Methodology & Semantics',
     tabDeliverables: 'Paper & Source Code',
     tabAIAdvisor: 'Gemini AI Assistant',
 
