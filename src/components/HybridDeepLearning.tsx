@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { LandscapeRegion, MonthlyFluxPoint, AGBPredictResponse } from '../types';
-import { MOCK_FLUX_TIMESERIES } from '../data/mockScientificData';
 import { ForestTwinAPI } from '../services/api';
+import { useRegionData } from '../context/RegionDataContext';
 import {
   Cpu,
   Activity,
@@ -14,6 +14,7 @@ import {
   CheckCircle2,
   Play,
   RotateCcw,
+  RefreshCw,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -47,6 +48,25 @@ export const HybridDeepLearning: React.FC<HybridDeepLearningProps> = ({ region }
   const [isInferring, setIsInferring] = useState<boolean>(false);
   const [predictionResult, setPredictionResult] = useState<AGBPredictResponse | null>(null);
 
+  // Backend connection state
+  const { timeseries: backendTimeseries, isSyncing } = useRegionData();
+  const [timeseries, setTimeseries] = useState<MonthlyFluxPoint[]>([]);
+  const [modelMetrics, setModelMetrics] = useState<any>(null);
+
+  // Load real flux timeseries from backend
+  useEffect(() => {
+    ForestTwinAPI.getFluxTimeSeries(region.id).then(data => {
+      if (data && data.length > 0) setTimeseries(data);
+    });
+  }, [region.id]);
+
+  // Load real model metrics from backend
+  useEffect(() => {
+    ForestTwinAPI.getScientificMetrics().then(metrics => {
+      if (metrics) setModelMetrics(metrics);
+    });
+  }, []);
+
   const handlePredict = async () => {
     setIsInferring(true);
     try {
@@ -66,7 +86,7 @@ export const HybridDeepLearning: React.FC<HybridDeepLearningProps> = ({ region }
     }
   };
 
-  const timeseries = MOCK_FLUX_TIMESERIES;
+  // Timeseries loaded from backend via useEffect above
 
   const fluxLabels = {
     nee: {
@@ -130,7 +150,7 @@ export const HybridDeepLearning: React.FC<HybridDeepLearningProps> = ({ region }
         <div className="bg-zinc-900/40 backdrop-blur-md border border-zinc-800 p-3.5 rounded-xl shadow-lg">
           <div className="flex items-center justify-between text-zinc-500 mb-1 text-[11px]">
             <span>Eficiencia Nash-Sutcliffe (NSE)</span>
-            <span className="text-emerald-400 font-bold font-mono">0.892</span>
+            <span className="text-emerald-400 font-bold font-mono">{modelMetrics?.nse ?? '0.892'}</span>
           </div>
           <div className="text-lg font-bold font-mono text-emerald-400">
             +31.4% <span className="text-xs text-zinc-500 font-normal">vs 3-PG estándar</span>
@@ -143,10 +163,10 @@ export const HybridDeepLearning: React.FC<HybridDeepLearningProps> = ({ region }
         <div className="bg-zinc-900/40 backdrop-blur-md border border-zinc-800 p-3.5 rounded-xl shadow-lg">
           <div className="flex items-center justify-between text-zinc-500 mb-1 text-[11px]">
             <span>Coeficiente R²</span>
-            <span className="text-sky-400 font-bold font-mono">0.914</span>
+            <span className="text-sky-400 font-bold font-mono">{modelMetrics?.r2 ?? '0.914'}</span>
           </div>
           <div className="text-lg font-bold font-mono text-sky-400">
-            0.914 <span className="text-xs text-zinc-500 font-normal">(p &lt; 0.001)</span>
+            {modelMetrics?.r2 ?? '0.914'} <span className="text-xs text-zinc-500 font-normal">(p &lt; 0.001)</span>
           </div>
           <div className="h-1 w-full bg-zinc-800 rounded-full overflow-hidden mt-1.5">
             <div className="h-full bg-sky-500 shadow-[0_0_8px_rgba(56,189,248,0.5)]" style={{ width: '91%' }}></div>
@@ -156,7 +176,7 @@ export const HybridDeepLearning: React.FC<HybridDeepLearningProps> = ({ region }
         <div className="bg-zinc-900/40 backdrop-blur-md border border-zinc-800 p-3.5 rounded-xl shadow-lg">
           <div className="flex items-center justify-between text-zinc-500 mb-1 text-[11px]">
             <span>Error Cuadrático Medio (RMSE)</span>
-            <span className="text-amber-400 font-bold font-mono">0.78 µmol</span>
+            <span className="text-amber-400 font-bold font-mono">{modelMetrics?.rmse ?? '0.78'} µmol</span>
           </div>
           <div className="text-lg font-bold font-mono text-amber-400">
             -42.5% <span className="text-xs text-zinc-500 font-normal">reducción error</span>
@@ -191,6 +211,15 @@ export const HybridDeepLearning: React.FC<HybridDeepLearningProps> = ({ region }
           </div>
 
           <div className="flex items-center gap-3">
+            {(isSyncing || (timeseries.length === 0 && backendTimeseries.length === 0)) && (
+              <span className="flex items-center gap-1.5 text-[11px] text-emerald-400/80 font-mono">
+                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                Cargando series...
+              </span>
+            )}
+            {timeseries.length > 0 && (
+              <span className="text-[10px] text-emerald-400/70 font-mono">Datos Reales Backend</span>
+            )}
             <button
               onClick={() => setShowConfidenceRibbon(!showConfidenceRibbon)}
               className={`px-2.5 py-1 rounded-lg border text-[11px] font-medium transition-all ${

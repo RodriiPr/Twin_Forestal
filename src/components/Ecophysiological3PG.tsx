@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
-import { LandscapeRegion, EcophysiologicalParams } from '../types';
+import React, { useState, useEffect } from 'react';
+import { LandscapeRegion, EcophysiologicalParams, MonthlyFluxPoint, Simulation3PGResponse } from '../types';
+import { ForestTwinAPI } from '../services/api';
+import { useRegionData } from '../context/RegionDataContext';
 import {
   Trees,
   Sliders,
@@ -10,6 +12,7 @@ import {
   Wind,
   Activity,
   RotateCcw,
+  RefreshCw,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -47,6 +50,44 @@ export const Ecophysiological3PG: React.FC<Ecophysiological3PGProps> = ({ region
   const [currentTemp, setCurrentTemp] = useState<number>(22.0);
   const [currentVPD, setCurrentVPD] = useState<number>(1.8);
   const [currentSWC, setCurrentSWC] = useState<number>(120);
+
+  // Backend connection state
+  const { timeseries: fluxTimeseries, isSyncing } = useRegionData();
+  const [fluxData, setFluxData] = useState<MonthlyFluxPoint[]>(fluxTimeseries);
+  const [simulationResults, setSimulationResults] = useState<Simulation3PGResponse | null>(null);
+  const [isSimulating, setIsSimulating] = useState<boolean>(false);
+
+  // Fetch real flux timeseries and run 3-PG simulation when region or VPD changes
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchData = async () => {
+      setIsSimulating(true);
+      try {
+        const [fluxRes, simRes] = await Promise.all([
+          ForestTwinAPI.getFluxTimeSeries(region.id),
+          ForestTwinAPI.simulate3PG({
+            region_id: region.id,
+            vpd_kpa: currentVPD,
+            t_mean_c: currentTemp,
+            months: 36,
+          }),
+        ]);
+
+        if (isMounted) {
+          setFluxData(fluxRes);
+          setSimulationResults(simRes);
+        }
+      } catch (e) {
+        console.error('[3-PG] Error fetching backend data:', e);
+      } finally {
+        if (isMounted) setIsSimulating(false);
+      }
+    };
+
+    fetchData();
+    return () => { isMounted = false; };
+  }, [region.id, currentVPD, currentTemp]);
 
   // Generate Temperature Modifier curve f_T(T)
   const tempCurveData = Array.from({ length: 45 }, (_, i) => {
@@ -282,6 +323,68 @@ export const Ecophysiological3PG: React.FC<Ecophysiological3PGProps> = ({ region
               <span className="font-mono text-cyan-400 font-bold">{currentMod.trans} mm d⁻¹</span>
             </div>
           </div>
+
+          {/* Backend Sync Indicator */}
+          {(isSimulating || isSyncing) && (
+            <div className="flex items-center gap-2 text-[11px] text-emerald-400/80 font-mono">
+              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+              <span>Sincronizando con backend 3-PG...</span>
+            </div>
+          )}
+
+          {/* Real Backend Simulation Results */}
+          {simulationResults && simulationResults.results.length > 0 && (
+            <div className="bg-emerald-950/20 border border-emerald-500/20 rounded-lg p-3 space-y-2">
+              <div className="flex items-center gap-2 text-[10px] uppercase font-bold text-emerald-400/80 tracking-wider">
+                <Sparkles className="w-3.5 h-3.5" />
+                Simulación Backend 3-PG (Datos Reales)
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-[11px] font-mono">
+                <div className="bg-zinc-900/60 p-2 rounded border border-zinc-800">
+                  <div className="text-zinc-500 text-[9px]">GPP Promedio</div>
+                  <div className="text-emerald-400 font-bold">
+                    {(simulationResults.results.reduce((a, r) => a + r.gpp_gc_m2_day, 0) / simulationResults.results.length).toFixed(2)}
+                    <span className="text-[9px] text-zinc-500 ml-1">g C m⁻² d⁻¹</span>
+                  </div>
+                </div>
+                <div className="bg-zinc-900/60 p-2 rounded border border-zinc-800">
+                  <div className="text-zinc-500 text-[9px]">NPP Promedio</div>
+                  <div className="text-sky-400 font-bold">
+                    {(simulationResults.results.reduce((a, r) => a + r.npp_gc_m2_day, 0) / simulationResults.results.length).toFixed(2)}
+                    <span className="text-[9px] text-zinc-500 ml-1">g C m⁻² d⁻¹</span>
+                  </div>
+                </div>
+                <div className="bg-zinc-900/60 p-2 rounded border border-zinc-800">
+                  <div className="text-zinc-500 text-[9px]">AGB Proyectada</div>
+                  <div className="text-amber-400 font-bold">
+                    {simulationResults.results[simulationResults.results.length - 1]?.agb_mgc_ha?.toFixed(1) ?? '—'}
+                    <span className="text-[9px] text-zinc-500 ml-1">Mg C/ha</span>
+                  </div>
+                </div>
+                <div className="bg-zinc-900/60 p-2 rounded border border-zinc-800">
+                  <div className="text-zinc-500 text-[9px]">LAI Promedio</div>
+                  <div className="text-cyan-400 font-bold">
+                    {(simulationResults.results.reduce((a, r) => a + r.lai, 0) / simulationResults.results.length).toFixed(2)}
+                    <span className="text-[9px] text-zinc-500 ml-1">m²/m²</span>
+                  </div>
+                </div>
+                <div className="bg-zinc-900/60 p-2 rounded border border-zinc-800">
+                  <div className="text-zinc-500 text-[9px]">NEE Promedio</div>
+                  <div className="text-rose-400 font-bold">
+                    {(simulationResults.results.reduce((a, r) => a + r.nee_gc_m2_day, 0) / simulationResults.results.length).toFixed(2)}
+                    <span className="text-[9px] text-zinc-500 ml-1">g C m⁻² d⁻¹</span>
+                  </div>
+                </div>
+                <div className="bg-zinc-900/60 p-2 rounded border border-zinc-800">
+                  <div className="text-zinc-500 text-[9px]">Transpiración Prom.</div>
+                  <div className="text-cyan-300 font-bold">
+                    {(simulationResults.results.reduce((a, r) => a + r.transpiration_mm_day, 0) / simulationResults.results.length).toFixed(2)}
+                    <span className="text-[9px] text-zinc-500 ml-1">mm d⁻¹</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Right Column: Physiological Response Curves & Dynamic Allocation */}
@@ -393,6 +496,55 @@ export const Ecophysiological3PG: React.FC<Ecophysiological3PGProps> = ({ region
               </ResponsiveContainer>
             </div>
           </div>
+
+          {/* Backend Simulation Timeseries Chart */}
+          {simulationResults && simulationResults.results.length > 0 && (
+            <div className="bg-zinc-900/40 backdrop-blur-md border border-zinc-800 rounded-xl p-4 shadow-xl">
+              <div className="flex items-center justify-between pb-2 border-b border-zinc-800 mb-3 text-xs">
+                <div>
+                  <span className="font-semibold text-zinc-200 uppercase tracking-wider text-[11px]">
+                    Simulación 3-PG Backend — Proyección a 36 Meses
+                  </span>
+                  <p className="text-[11px] text-zinc-400 mt-0.5">
+                    GPP, NEE y AGB proyectados por el motor biofísico del backend para {region.name}
+                  </p>
+                </div>
+                <span className="font-mono text-[10px] text-emerald-400/70">Datos Reales</span>
+              </div>
+              <div className="h-56 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={simulationResults.results} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
+                    <XAxis dataKey="label" stroke="#71717a" tick={{ fontSize: 10 }} />
+                    <YAxis stroke="#71717a" tick={{ fontSize: 10 }} />
+                    <Tooltip
+                      content={({ active, payload }) => {
+                        if (active && payload && payload.length) {
+                          const d = payload[0].payload;
+                          return (
+                            <div className="bg-zinc-950 border border-zinc-700 p-3 rounded-lg text-xs shadow-2xl space-y-1">
+                              <div className="font-bold text-zinc-200 border-b border-zinc-800 pb-1">{d.label}</div>
+                              <div className="text-emerald-400">GPP: <span className="font-mono font-bold">{d.gpp_gc_m2_day?.toFixed(2)}</span> g C m⁻² d⁻¹</div>
+                              <div className="text-sky-400">NPP: <span className="font-mono font-bold">{d.npp_gc_m2_day?.toFixed(2)}</span> g C m⁻² d⁻¹</div>
+                              <div className="text-rose-400">NEE: <span className="font-mono font-bold">{d.nee_gc_m2_day?.toFixed(2)}</span> g C m⁻² d⁻¹</div>
+                              <div className="text-amber-400">AGB: <span className="font-mono font-bold">{d.agb_mgc_ha?.toFixed(1)}</span> Mg C/ha</div>
+                              <div className="text-cyan-400">LAI: <span className="font-mono font-bold">{d.lai?.toFixed(2)}</span> m²/m²</div>
+                            </div>
+                          );
+                        }
+                        return null;
+                      }}
+                    />
+                    <Legend wrapperStyle={{ fontSize: 11, paddingTop: 6 }} />
+                    <Line type="monotone" dataKey="gpp_gc_m2_day" name="GPP" stroke="#10b981" strokeWidth={2} dot={false} />
+                    <Line type="monotone" dataKey="npp_gc_m2_day" name="NPP" stroke="#38bdf8" strokeWidth={1.8} dot={false} />
+                    <Line type="monotone" dataKey="nee_gc_m2_day" name="NEE" stroke="#f43f5e" strokeWidth={1.5} strokeDasharray="4 4" dot={false} />
+                    <Line type="monotone" dataKey="agb_mgc_ha" name="AGB (acum)" stroke="#f59e0b" strokeWidth={2.2} dot={false} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -1,18 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { LandscapeRegion, ManagementScenario } from '../types';
-import { MOCK_SCENARIOS } from '../data/mockScientificData';
+import { ForestTwinAPI } from '../services/api';
 import {
   GitBranch,
-  Play,
-  Trees,
-  Flame,
-  ShieldCheck,
-  Award,
-  DollarSign,
-  Droplets,
-  RotateCcw,
-  Sparkles,
-  Layers,
+  AlertTriangle,
+  RefreshCw,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -34,72 +26,140 @@ interface ScenarioSimulatorProps {
   region: LandscapeRegion;
 }
 
+const SCENARIO_COLORS = ['#10b981', '#38bdf8', '#f59e0b', '#f43f5e', '#a78bfa', '#34d399'];
+
+const DEFAULT_METRICS_SUMMARY = {
+  totalCarbon50Yr: 0,
+  carbonSequestrationRate: 0,
+  cumulativeHarvestedCarbon: 0,
+  meanFireRiskProb: 0,
+  fireResilienceScore: 0,
+  biodiversityShannonH: 0,
+  waterYieldM3Ha: 0,
+  economicNPV_EUR_ha: 0,
+  uncertaintyReductionPct: 0,
+};
+
+const DEFAULT_TRAJECTORY_POINT = {
+  year: 0,
+  agb: 0,
+  soc: 0,
+  deadwoodC: 0,
+  totalCarbon: 0,
+  lai: 0,
+  fireRiskProbability: 0,
+  canopyHeightM: 0,
+  stemDensityHa: 0,
+  waterYieldMm: 0,
+  biodiversityIndex: 0,
+};
+
+function normalizeScenario(raw: any): ManagementScenario | null {
+  if (!raw || !raw.id || !raw.name) return null;
+  return {
+    id: String(raw.id),
+    name: String(raw.name),
+    tag: String(raw.tag || ''),
+    type: raw.type || 'laissez_faire',
+    description: String(raw.description || ''),
+    thinningIntensityPct: Number(raw.thinningIntensityPct) || 0,
+    thinningScheduleYears: Array.isArray(raw.thinningScheduleYears) ? raw.thinningScheduleYears : [],
+    prescribedBurnIntervalYears: Number(raw.prescribedBurnIntervalYears) || 0,
+    reforestationSpecies: String(raw.reforestationSpecies || ''),
+    fuelBreakWidthM: Number(raw.fuelBreakWidthM) || 0,
+    trajectory: Array.isArray(raw.trajectory) && raw.trajectory.length > 0
+      ? raw.trajectory.map((t: any) => ({ ...DEFAULT_TRAJECTORY_POINT, ...t }))
+      : [{ ...DEFAULT_TRAJECTORY_POINT }],
+    metricsSummary: { ...DEFAULT_METRICS_SUMMARY, ...(raw.metricsSummary || {}) },
+  };
+}
+
 export const ScenarioSimulator: React.FC<ScenarioSimulatorProps> = ({ region }) => {
-  const scenarios = MOCK_SCENARIOS;
-  const [selectedScenarioId, setSelectedScenarioId] = useState<string>(scenarios[2].id); // Default to restoration
+  const [scenarios, setScenarios] = useState<ManagementScenario[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedScenarioId, setSelectedScenarioId] = useState<string>('');
   const [activeMetric, setActiveMetric] = useState<'totalCarbon' | 'fireRiskProbability' | 'biodiversityIndex' | 'lai'>('totalCarbon');
+
+  useEffect(() => {
+    let isMounted = true;
+    setIsLoading(true);
+    setError(null);
+
+    ForestTwinAPI.getScenarios()
+      .then((data) => {
+        if (!isMounted) return;
+        const valid = (data || []).map(normalizeScenario).filter((s): s is ManagementScenario => s !== null);
+        if (valid.length > 0) {
+          setScenarios(valid);
+          setSelectedScenarioId((prev) => prev || valid[0].id);
+        } else {
+          setError('No se encontraron escenarios válidos en el backend.');
+        }
+      })
+      .catch((err) => {
+        if (isMounted) setError('Error al cargar escenarios: ' + (err?.message || 'desconocido'));
+      })
+      .finally(() => {
+        if (isMounted) setIsLoading(false);
+      });
+
+    return () => { isMounted = false; };
+  }, [region.id]);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64 bg-zinc-900/40 backdrop-blur-md border border-zinc-800 rounded-xl">
+        <div className="flex items-center gap-2 text-emerald-400/80 font-mono text-sm">
+          <RefreshCw className="w-5 h-5 animate-spin" />
+          <span>Cargando escenarios desde PostgreSQL...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || scenarios.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-64 bg-zinc-900/40 backdrop-blur-md border border-zinc-800 rounded-xl">
+        <div className="text-amber-400/80 font-mono text-sm text-center space-y-2">
+          <AlertTriangle className="w-6 h-6 mx-auto" />
+          <span>{error || 'No hay escenarios disponibles.'}</span>
+        </div>
+      </div>
+    );
+  }
 
   const currentScenario = scenarios.find((s) => s.id === selectedScenarioId) || scenarios[0];
 
-  // Radar multi-criteria comparison data
-  const radarData = [
-    {
-      criterion: 'Stock Carbono 50a',
-      laissez_faire: 45,
-      thinning: 82,
-      prescribed_burn: 74,
-      restoration: 98,
-      fullMark: 100,
-    },
-    {
-      criterion: 'Resiliencia a Incendios',
-      laissez_faire: 32,
-      thinning: 84,
-      prescribed_burn: 95,
-      restoration: 78,
-      fullMark: 100,
-    },
-    {
-      criterion: 'Biodiversidad Shannon',
-      laissez_faire: 52,
-      thinning: 78,
-      prescribed_burn: 69,
-      restoration: 97,
-      fullMark: 100,
-    },
-    {
-      criterion: 'Rendimiento Maderable',
-      laissez_faire: 0,
-      thinning: 92,
-      prescribed_burn: 25,
-      restoration: 60,
-      fullMark: 100,
-    },
-    {
-      criterion: 'Aporte Hídrico Cuenca',
-      laissez_faire: 55,
-      thinning: 88,
-      prescribed_burn: 92,
-      restoration: 70,
-      fullMark: 100,
-    },
-  ];
-
-  // Combined 50-year trajectories for charting
   const trajectoryYears = [0, 5, 10, 20, 25, 35, 50];
   const combinedTrajectoryData = trajectoryYears.map((yr) => {
-    const s_thin = scenarios[0].trajectory.find((t) => t.year === yr) || scenarios[0].trajectory[0];
-    const s_burn = scenarios[1].trajectory.find((t) => t.year === yr) || scenarios[1].trajectory[0];
-    const s_rest = scenarios[2].trajectory.find((t) => t.year === yr) || scenarios[2].trajectory[0];
-    const s_base = scenarios[3].trajectory.find((t) => t.year === yr) || scenarios[3].trajectory[0];
+    const point: Record<string, any> = { year: `Año ${yr}` };
+    scenarios.forEach((sc) => {
+      const t = sc.trajectory.find((tp) => tp.year === yr) || sc.trajectory[0];
+      if (t) point[sc.id] = t[activeMetric] ?? 0;
+    });
+    return point;
+  });
 
-    return {
-      year: `Año ${yr}`,
-      thinning: s_thin[activeMetric],
-      prescribed_burn: s_burn[activeMetric],
-      restoration: s_rest[activeMetric],
-      laissez_faire: s_base[activeMetric],
-    };
+  const radarCriteria = [
+    'Stock Carbono 50a',
+    'Resiliencia a Incendios',
+    'Biodiversidad Shannon',
+    'Rendimiento Maderable',
+    'Aporte Hídrico Cuenca',
+  ];
+  const radarData = radarCriteria.map((criterion, idx) => {
+    const point: Record<string, any> = { criterion };
+    scenarios.slice(0, 4).forEach((sc, scIdx) => {
+      const key = `sc${scIdx}`;
+      const traj = sc.trajectory[sc.trajectory.length - 1];
+      if (idx === 0) point[key] = sc.metricsSummary.totalCarbon50Yr;
+      else if (idx === 1) point[key] = sc.metricsSummary.fireResilienceScore;
+      else if (idx === 2) point[key] = sc.metricsSummary.biodiversityShannonH * 25;
+      else if (idx === 3) point[key] = sc.metricsSummary.economicNPV_EUR_ha / 100;
+      else point[key] = sc.metricsSummary.waterYieldM3Ha / 10;
+    });
+    return point;
   });
 
   const metricMeta = {
@@ -126,6 +186,10 @@ export const ScenarioSimulator: React.FC<ScenarioSimulatorProps> = ({ region }) 
           </p>
         </div>
 
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] text-emerald-400/70 font-mono">Datos Reales PostgreSQL</span>
+        </div>
+
         {/* Metric Switcher */}
         <div className="flex items-center gap-1.5 bg-zinc-950 p-1 rounded-lg border border-zinc-800 text-xs">
           {(['totalCarbon', 'fireRiskProbability', 'biodiversityIndex', 'lai'] as const).map((m) => (
@@ -145,7 +209,7 @@ export const ScenarioSimulator: React.FC<ScenarioSimulatorProps> = ({ region }) 
       </div>
 
       {/* Scenario Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-3 text-xs">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
         {scenarios.map((sc) => {
           const isSelected = sc.id === selectedScenarioId;
           return (
@@ -191,7 +255,7 @@ export const ScenarioSimulator: React.FC<ScenarioSimulatorProps> = ({ region }) 
         })}
       </div>
 
-      {/* Main Charts: 50-Year Trajectory Line Graph & Radar Multi-Criteria Trade-offs */}
+      {/* Main Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
         {/* Trajectory Evolution Chart */}
         <div className="lg:col-span-8 bg-zinc-900/40 backdrop-blur-md border border-zinc-800 rounded-xl p-4 shadow-2xl">
@@ -219,18 +283,11 @@ export const ScenarioSimulator: React.FC<ScenarioSimulatorProps> = ({ region }) 
                           <div className="font-bold text-zinc-200 border-b border-zinc-800 pb-1">
                             {payload[0].payload.year}
                           </div>
-                          <div className="text-emerald-400">
-                            Restauración Diversa: <span className="font-mono font-bold">{payload[0].payload.restoration}</span>
-                          </div>
-                          <div className="text-sky-400">
-                            Clareo Selectivo: <span className="font-mono font-bold">{payload[0].payload.thinning}</span>
-                          </div>
-                          <div className="text-amber-400">
-                            Quemas Prescritas: <span className="font-mono font-bold">{payload[0].payload.prescribed_burn}</span>
-                          </div>
-                          <div className="text-rose-400">
-                            No Intervención (Laissez-faire): <span className="font-mono font-bold">{payload[0].payload.laissez_faire}</span>
-                          </div>
+                          {scenarios.map((sc, idx) => (
+                            <div key={sc.id} style={{ color: SCENARIO_COLORS[idx % SCENARIO_COLORS.length] }}>
+                              {sc.name}: <span className="font-mono font-bold">{payload[0].payload[sc.id]}</span>
+                            </div>
+                          ))}
                         </div>
                       );
                     }
@@ -238,10 +295,18 @@ export const ScenarioSimulator: React.FC<ScenarioSimulatorProps> = ({ region }) 
                   }}
                 />
                 <Legend wrapperStyle={{ fontSize: 11, paddingTop: 6 }} />
-                <Line type="monotone" dataKey="restoration" name="Restauración Diversa" stroke="#10b981" strokeWidth={2.5} dot={{ r: 3 }} />
-                <Line type="monotone" dataKey="thinning" name="Clareos Selectivos" stroke="#38bdf8" strokeWidth={2} dot={{ r: 2.5 }} />
-                <Line type="monotone" dataKey="prescribed_burn" name="Quemas Prescritas" stroke="#f59e0b" strokeWidth={2} dot={{ r: 2.5 }} />
-                <Line type="monotone" dataKey="laissez_faire" name="No Intervención (Control)" stroke="#f43f5e" strokeWidth={1.8} strokeDasharray="3 3" dot={{ r: 2 }} />
+                {scenarios.map((sc, idx) => (
+                  <Line
+                    key={sc.id}
+                    type="monotone"
+                    dataKey={sc.id}
+                    name={sc.name}
+                    stroke={SCENARIO_COLORS[idx % SCENARIO_COLORS.length]}
+                    strokeWidth={idx === 0 ? 2.5 : 2}
+                    strokeDasharray={idx === scenarios.length - 1 ? '3 3' : undefined}
+                    dot={{ r: idx === 0 ? 3 : 2.5 }}
+                  />
+                ))}
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -262,9 +327,16 @@ export const ScenarioSimulator: React.FC<ScenarioSimulatorProps> = ({ region }) 
                 <PolarGrid stroke="#27272a" />
                 <PolarAngleAxis dataKey="criterion" stroke="#71717a" tick={{ fontSize: 9 }} />
                 <PolarRadiusAxis stroke="#71717a" tick={{ fontSize: 8 }} angle={30} domain={[0, 100]} />
-                <Radar name="Restauración" dataKey="restoration" stroke="#10b981" fill="#10b981" fillOpacity={0.4} />
-                <Radar name="Clareos" dataKey="thinning" stroke="#38bdf8" fill="#38bdf8" fillOpacity={0.2} />
-                <Radar name="Sin Gestión" dataKey="laissez_faire" stroke="#f43f5e" fill="#f43f5e" fillOpacity={0.15} />
+                {scenarios.slice(0, 4).map((sc, idx) => (
+                  <Radar
+                    key={sc.id}
+                    name={sc.name}
+                    dataKey={`sc${idx}`}
+                    stroke={SCENARIO_COLORS[idx % SCENARIO_COLORS.length]}
+                    fill={SCENARIO_COLORS[idx % SCENARIO_COLORS.length]}
+                    fillOpacity={0.15}
+                  />
+                ))}
                 <Legend wrapperStyle={{ fontSize: 10 }} />
               </RadarChart>
             </ResponsiveContainer>

@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
-import { LandscapeRegion } from '../types';
+import React, { useState, useEffect } from 'react';
+import { LandscapeRegion, SemanticDecisionOutput } from '../types';
+import { ForestTwinAPI } from '../services/api';
+import { useRegionData } from '../context/RegionDataContext';
 import {
   Flame,
   Wind,
@@ -11,6 +13,7 @@ import {
   Trees,
   ShieldCheck,
   Zap,
+  RefreshCw,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -37,6 +40,47 @@ export const WildfireRiskEngine: React.FC<WildfireRiskEngineProps> = ({ region }
   const [daysWithoutRain, setDaysWithoutRain] = useState<number>(24); // days
   const [slopePct, setSlopePct] = useState<number>(25); // %
   const [fuelModel, setFuelModel] = useState<'shrub_conifer' | 'dense_pine' | 'oak_hardwood'>('dense_pine');
+
+  // Backend connection state
+  const { selectedStand, isSyncing } = useRegionData();
+  const [semanticEval, setSemanticEval] = useState<SemanticDecisionOutput | null>(null);
+  const [isEvaluating, setIsEvaluating] = useState<boolean>(false);
+
+  // Fetch real stand telemetry and run semantic evaluation when stand or sliders change
+  useEffect(() => {
+    if (!selectedStand) return;
+    let isMounted = true;
+
+    // Initialize sliders with real stand data when stand changes
+    setTemperature(25 + (1 - selectedStand.fuelMoisturePct / 100) * 15);
+    setRelHumidity(selectedStand.fuelMoisturePct * 0.8);
+    setSlopePct(selectedStand.slopePct);
+
+    const runEvaluation = async () => {
+      setIsEvaluating(true);
+      try {
+        const result = await ForestTwinAPI.runSemanticEvaluation({
+          stand_id: selectedStand.standId,
+          species: selectedStand.species,
+          agb_mgc_ha: selectedStand.agbMgC_ha,
+          gedi_height_m: selectedStand.gediHeightM,
+          fuel_moisture_pct: selectedStand.fuelMoisturePct,
+          fwi_risk: selectedStand.fwiRisk,
+          ndvi: selectedStand.ndvi,
+          slope_pct: selectedStand.slopePct,
+          days_without_rain: Math.round((100 - selectedStand.fuelMoisturePct) / 4),
+        });
+        if (isMounted) setSemanticEval(result);
+      } catch (e) {
+        console.error('[Wildfire] Error in semantic evaluation:', e);
+      } finally {
+        if (isMounted) setIsEvaluating(false);
+      }
+    };
+
+    runEvaluation();
+    return () => { isMounted = false; };
+  }, [selectedStand?.standId, selectedStand?.fuelMoisturePct, selectedStand?.fwiRisk]);
 
   // Compute Canadian Fire Weather Index (FWI) sub-indices
   const calculateFWI = () => {
@@ -365,6 +409,58 @@ export const WildfireRiskEngine: React.FC<WildfireRiskEngineProps> = ({ region }
               </ResponsiveContainer>
             </div>
           </div>
+
+          {/* Backend Semantic Evaluation Panel */}
+          {(isEvaluating || isSyncing) && (
+            <div className="flex items-center gap-2 text-[11px] text-amber-400/80 font-mono">
+              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+              <span>Evaluando riesgo semántico en backend...</span>
+            </div>
+          )}
+
+          {semanticEval && (
+            <div className="bg-zinc-900/40 backdrop-blur-md border border-zinc-800 rounded-xl p-4 shadow-xl space-y-3">
+              <div className="flex items-center justify-between pb-2 border-b border-zinc-800">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="w-4 h-4 text-amber-400" />
+                  <span className="font-semibold text-zinc-200 uppercase tracking-wider text-[11px]">
+                    Evaluación Semántica — Motor CRISP-DM (Dao et al., 2025)
+                  </span>
+                </div>
+                <span className="font-mono text-[10px] text-emerald-400/70">Datos Reales Backend</span>
+              </div>
+
+              {/* Risk Level */}
+              <div className="bg-zinc-950/60 p-3 rounded-lg border border-zinc-800">
+                <div className="text-[10px] uppercase font-bold text-zinc-500 tracking-wider mb-1">Nivel de Riesgo</div>
+                <div className="text-sm font-bold text-amber-400 font-mono">{semanticEval.risk_level}</div>
+              </div>
+
+              {/* Fire Behavior */}
+              <div className="bg-zinc-950/60 p-3 rounded-lg border border-zinc-800">
+                <div className="text-[10px] uppercase font-bold text-zinc-500 tracking-wider mb-1">Comportamiento del Fuego</div>
+                <p className="text-[11px] text-zinc-300 leading-relaxed">{semanticEval.fire_behavior}</p>
+              </div>
+
+              {/* Adaptive Intervention */}
+              <div className="bg-zinc-950/60 p-3 rounded-lg border border-zinc-800">
+                <div className="text-[10px] uppercase font-bold text-zinc-500 tracking-wider mb-1">Intervención Adaptativa Recomendada</div>
+                <p className="text-[11px] text-emerald-300 leading-relaxed">{semanticEval.adaptive_intervention}</p>
+              </div>
+
+              {/* Carbon Tradeoff */}
+              <div className="bg-zinc-950/60 p-3 rounded-lg border border-zinc-800">
+                <div className="text-[10px] uppercase font-bold text-zinc-500 tracking-wider mb-1">Evaluación Trade-off Carbono</div>
+                <p className="text-[11px] text-sky-300 leading-relaxed">{semanticEval.carbon_tradeoff_assessment}</p>
+              </div>
+
+              {/* Metadata */}
+              <div className="flex items-center justify-between text-[10px] text-zinc-500 font-mono pt-1">
+                <span>IC: ±{semanticEval.uncertainty_ci_width} Mg C/ha</span>
+                <span>{semanticEval.flow_step}</span>
+              </div>
+            </div>
+          )}
 
           {/* Radar FMC & GEDI 3D Fuel Stratification Synergy */}
           <div className="bg-zinc-900/40 backdrop-blur-md border border-zinc-800 p-3.5 rounded-xl text-xs space-y-2 text-zinc-400">
