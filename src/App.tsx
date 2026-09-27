@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { LANDSCAPE_REGIONS } from './data/mockScientificData';
 import { LandscapeRegion } from './types';
+import { ForestTwinAPI } from './services/api';
 import { Header } from './components/Header';
 import { Landscape2DMap } from './components/Landscape2DMap';
 import { Canopy3DProfile } from './components/Canopy3DProfile';
@@ -17,11 +18,24 @@ import { ThemeProvider, useTheme } from './context/ThemeContext';
 import { LanguageProvider, useLanguage } from './context/LanguageContext';
 
 function AppContent() {
-  const [regions] = useState<LandscapeRegion[]>(LANDSCAPE_REGIONS);
+  const [regions, setRegions] = useState<LandscapeRegion[]>(LANDSCAPE_REGIONS);
   const [selectedRegion, setSelectedRegion] = useState<LandscapeRegion>(LANDSCAPE_REGIONS[0]);
   const [activeTab, setActiveTab] = useState<string>('landscape-2d');
   const [isSimulating, setIsSimulating] = useState<boolean>(true);
   const [timelineYear, setTimelineYear] = useState<number>(2024);
+
+  useEffect(() => {
+    let isMounted = true;
+    ForestTwinAPI.getRegions().then((fetchedRegions) => {
+      if (isMounted && fetchedRegions && fetchedRegions.length > 0) {
+        setRegions(fetchedRegions);
+        setSelectedRegion(fetchedRegions[0]);
+      }
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const { theme } = useTheme();
   const { t } = useLanguage();

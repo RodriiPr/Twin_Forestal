@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
+import { ForestTwinAPI } from '../services/api';
 
 interface FloatingChatbotProps {
   region: LandscapeRegion;
@@ -84,25 +85,20 @@ export const FloatingChatbot: React.FC<FloatingChatbotProps> = ({ region }) => {
     setIsLoading(true);
 
     try {
-      const response = await fetch('/api/ai-advisor', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          prompt: query,
-          regionName: region.name,
-          species: region.dominantSpecies.join(', '),
-          agbBaseline: region.baselineAGB,
-          language,
-          context: `Región: ${region.name}, Bioma: ${region.biome}, Especies: ${region.dominantSpecies.join(', ')}, AGB Base: ${region.baselineAGB} Mg C/ha.`,
-        }),
+      const responseText = await ForestTwinAPI.askAiAdvisor(query, {
+        region_id: region.id,
+        regionName: region.name,
+        biome: region.biome,
+        species: region.dominantSpecies.join(', '),
+        agbBaseline: region.baselineAGB,
+        language,
+        context: `Región: ${region.name}, Bioma: ${region.biome}, Especies: ${region.dominantSpecies.join(', ')}, AGB Base: ${region.baselineAGB} Mg C/ha.`,
       });
-
-      const data = await response.json();
 
       const aiMsg: Message = {
         id: (Date.now() + 1).toString(),
         sender: 'ai',
-        text: data.response || (language === 'es' ? 'No se pudo obtener respuesta.' : 'Could not get response.'),
+        text: responseText,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       };
 

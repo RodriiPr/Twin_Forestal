@@ -191,3 +191,126 @@ export interface ScientificCodeArtifact {
   description: string;
   code: string;
 }
+
+// -------------------------------------------------------------
+// Modelos de Comunicación con FastAPI Backend
+// -------------------------------------------------------------
+
+export interface AGBPredictRequest {
+  rh98_m: number;
+  ndvi: number;
+  savi: number;
+  ndwi: number;
+  fmc_pct: number;
+  vpd_kpa: number;
+}
+
+export interface AGBPredictResponse {
+  agb_pred_mgc_ha: number;
+  pure_3pg_estimate_mgc_ha: number;
+  hybrid_residual_correction: number;
+  ci_95_lower: number;
+  ci_95_upper: number;
+  model_version: string;
+  scientific_basis: string;
+}
+
+export interface Simulation3PGRequest {
+  region_id?: string;
+  lat?: number;
+  asw?: number;
+  par_mj_m2_day?: number;
+  vpd_kpa?: number;
+  t_mean_c?: number;
+  months?: number;
+}
+
+export interface Simulation3PGOutputPoint {
+  month: number;
+  label: string;
+  gpp_gc_m2_day: number;
+  npp_gc_m2_day: number;
+  reco_gc_m2_day: number;
+  nee_gc_m2_day: number;
+  agb_mgc_ha: number;
+  transpiration_mm_day: number;
+  lai: number;
+}
+
+export interface Simulation3PGResponse {
+  results: Simulation3PGOutputPoint[];
+}
+
+export interface StandTelemetryInput {
+  stand_id: string;
+  region_name: string;
+  species: string;
+  agb_mgc_ha: number;
+  gedi_height_m: number;
+  fuel_moisture_pct: number;
+  fwi_risk: number;
+  ndvi: number;
+  slope_pct: number;
+  days_without_rain?: number;
+}
+
+export interface SemanticDecisionOutput {
+  stand_id: string;
+  risk_level: string;
+  fire_behavior: string;
+  adaptive_intervention: string;
+  carbon_tradeoff_assessment: string;
+  uncertainty_ci_width: number;
+  scientific_basis: string;
+  flow_step: string;
+}
+
+export interface LangflowNode {
+  id: string;
+  type: string;
+  label: string;
+  data: Record<string, any>;
+  position: { x: number; y: number };
+}
+
+export interface LangflowEdge {
+  id: string;
+  source: string;
+  target: string;
+}
+
+export interface LangflowFlowSchema {
+  name: string;
+  description: string;
+  nodes: LangflowNode[];
+  edges: LangflowEdge[];
+}
+
+export interface CrispDmPhase {
+  id: string;
+  phaseNumber: number;
+  name: string;
+  crispEquivalent: string;
+  status: string;
+  color: string;
+  citation: string;
+  description: string;
+  kpis?: Array<{
+    name: string;
+    target: string;
+    achieved: string;
+    status: string;
+    criterion: string;
+  }>;
+  stakeholders?: string[];
+  [key: string]: any;
+}
+
+export interface CrispDmOverview {
+  framework: string;
+  project: string;
+  activeRegionId: string;
+  standsInDatabase: number;
+  phases: CrispDmPhase[];
+}
+
