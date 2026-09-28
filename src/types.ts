@@ -268,7 +268,7 @@ export interface AGBPredictResponse {
 
 export interface StandTelemetryInput {
   stand_id: string;
-  region_name: string;
+  region_name?: string;
   species: string;
   agb_mgc_ha: number;
   gedi_height_m: number;

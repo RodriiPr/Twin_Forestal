@@ -19,6 +19,7 @@ import {
   RotateCcw,
   Sparkles,
   Info,
+  ExternalLink,
 } from 'lucide-react';
 import { ForestTwinAPI } from '../services/api';
 import { LangflowFlowSchema, LandscapeRegion, RasterPixelInfo } from '../types';
@@ -40,6 +41,7 @@ export const LangflowCanvasViewer: React.FC<LangflowCanvasViewerProps> = ({ regi
   const [isSimulating, setIsSimulating] = useState<boolean>(false);
   const [simStep, setSimStep] = useState<number>(0);
   const [copied, setCopied] = useState<boolean>(false);
+  const [viewMode, setViewMode] = useState<'live' | 'schema'>('live');
 
   useEffect(() => {
     ForestTwinAPI.getLangflowSchema().then((schema) => {
@@ -246,57 +248,155 @@ export const LangflowCanvasViewer: React.FC<LangflowCanvasViewerProps> = ({ regi
           </div>
         </div>
 
-        {/* Action Buttons */}
-        <div className="flex items-center gap-2">
-          <button
-            onClick={runSimulation}
-            disabled={isSimulating}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono font-medium transition-all cursor-pointer ${
-              isSimulating
-                ? 'bg-purple-500/30 text-purple-300 border border-purple-500/50 animate-pulse'
-                : 'bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold shadow-[0_0_12px_rgba(16,185,129,0.3)]'
-            }`}
-          >
-            <Play className={`w-3.5 h-3.5 ${isSimulating ? 'animate-spin' : ''}`} />
-            <span>{isSimulating ? `Ejecutando Paso ${simStep}/5...` : 'Simular Flujo LCEL'}</span>
-          </button>
+        {/* View Mode Toggle and Action Buttons */}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Mode Switcher */}
+          <div className="flex items-center bg-zinc-950/90 p-1 rounded-xl border border-zinc-800 shadow-inner">
+            <button
+              onClick={() => setViewMode('live')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
+                viewMode === 'live'
+                  ? 'bg-purple-600 text-white shadow-[0_0_15px_rgba(168,85,247,0.4)]'
+                  : 'text-zinc-400 hover:text-zinc-200'
+              }`}
+            >
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+              <span>⚡ Langflow Studio en Vivo</span>
+            </button>
+            <button
+              onClick={() => setViewMode('schema')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
+                viewMode === 'schema'
+                  ? 'bg-emerald-600 text-white shadow-[0_0_15px_rgba(16,185,129,0.4)]'
+                  : 'text-zinc-400 hover:text-zinc-200'
+              }`}
+            >
+              <Network className="w-3.5 h-3.5" />
+              <span>📊 Esquema del Grafo</span>
+            </button>
+          </div>
 
-          <button
-            onClick={handleCopyJson}
-            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-mono border transition-all cursor-pointer ${
-              isDark
-                ? 'bg-zinc-950 hover:bg-zinc-800 border-zinc-700 text-zinc-300'
-                : 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-700'
-            }`}
-            title="Copiar especificación JSON del grafo"
-          >
-            {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-            <span className="hidden sm:inline">{copied ? 'Copiado' : 'Copiar'}</span>
-          </button>
+          {viewMode === 'schema' && (
+            <>
+              <button
+                onClick={runSimulation}
+                disabled={isSimulating}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono font-medium transition-all cursor-pointer ${
+                  isSimulating
+                    ? 'bg-purple-500/30 text-purple-300 border border-purple-500/50 animate-pulse'
+                    : 'bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold shadow-[0_0_12px_rgba(16,185,129,0.3)]'
+                }`}
+              >
+                <Play className={`w-3.5 h-3.5 ${isSimulating ? 'animate-spin' : ''}`} />
+                <span>{isSimulating ? `Ejecutando Paso ${simStep}/5...` : 'Simular Flujo LCEL'}</span>
+              </button>
 
-          <button
-            onClick={handleDownload}
-            className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-mono border transition-all cursor-pointer ${
-              isDark
-                ? 'bg-sky-500/15 hover:bg-sky-500/25 text-sky-300 border-sky-500/40'
-                : 'bg-sky-50 hover:bg-sky-100 text-sky-700 border-sky-300'
-            }`}
-            title="Descargar archivo JSON importable en Langflow"
-          >
-            <Download className="w-3.5 h-3.5" />
-            <span>Exportar JSON</span>
-          </button>
+              <button
+                onClick={handleCopyJson}
+                className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-mono border transition-all cursor-pointer ${
+                  isDark
+                    ? 'bg-zinc-950 hover:bg-zinc-800 border-zinc-700 text-zinc-300'
+                    : 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-700'
+                }`}
+                title="Copiar especificación JSON del grafo"
+              >
+                {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                <span className="hidden sm:inline">{copied ? 'Copiado' : 'Copiar'}</span>
+              </button>
+
+              <button
+                onClick={handleDownload}
+                className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-mono border transition-all cursor-pointer ${
+                  isDark
+                    ? 'bg-sky-500/15 hover:bg-sky-500/25 text-sky-300 border-sky-500/40'
+                    : 'bg-sky-50 hover:bg-sky-100 text-sky-700 border-sky-300'
+                }`}
+                title="Descargar archivo JSON importable en Langflow"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Exportar JSON</span>
+              </button>
+            </>
+          )}
+
+          {viewMode === 'live' && (
+            <a
+              href="http://localhost:7860"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 border border-purple-500/40 text-xs font-mono font-semibold transition-all hover:shadow-[0_0_12px_rgba(168,85,247,0.3)] cursor-pointer"
+            >
+              <span>Abrir en Pestaña Nueva</span>
+              <ExternalLink className="w-3.5 h-3.5" />
+            </a>
+          )}
         </div>
       </div>
 
-      {/* Main Interactive Canvas and Lateral Inspector Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-        {/* Left: Interactive Visual Graph (8 Cols) */}
-        <div className={`lg:col-span-8 p-5 rounded-xl border backdrop-blur-xl relative overflow-hidden flex flex-col justify-between min-h-[440px] transition-colors ${
-          isDark ? 'bg-zinc-950/70 border-zinc-800' : 'bg-slate-900 text-zinc-100 border-slate-700'
-        }`}>
-          {/* Canvas Sub-Header */}
-          <div className="flex items-center justify-between pb-3 border-b border-zinc-800/80 z-10 text-xs">
+      {viewMode === 'live' ? (
+        <div className="rounded-2xl border border-purple-500/30 bg-zinc-950/90 shadow-2xl overflow-hidden backdrop-blur-xl transition-all">
+          {/* Top Frame Bar */}
+          <div className="flex flex-wrap items-center justify-between px-4 py-3 bg-zinc-900/95 border-b border-zinc-800 text-xs gap-3">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                <span className="relative flex h-2.5 w-2.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                </span>
+                <span className="font-mono font-bold text-emerald-400">Langflow 1.0+ Engine Conectado</span>
+              </div>
+              <span className="hidden md:inline text-zinc-600 font-mono">|</span>
+              <span className="hidden md:inline text-zinc-400 font-mono text-[11px]">
+                Puerto <code className="text-purple-300 font-bold">7860</code> &bull; Contenedor Docker: <code className="text-emerald-300">silvatwin_langflow</code>
+              </span>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <span className="text-[11px] text-zinc-400 hidden lg:inline">
+                Interactúa con los nodos o prueba el Playground en vivo:
+              </span>
+              <a
+                href="http://localhost:7860"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 border border-purple-500/40 text-xs font-mono font-semibold transition-all hover:shadow-[0_0_12px_rgba(168,85,247,0.3)]"
+              >
+                <span>Pantalla Completa</span>
+                <ExternalLink className="w-3.5 h-3.5" />
+              </a>
+            </div>
+          </div>
+
+          {/* Iframe Viewport */}
+          <div className="relative w-full h-[780px] bg-zinc-950">
+            <iframe
+              src="http://localhost:7860"
+              title="Langflow Studio Live"
+              className="w-full h-full border-0"
+              allow="clipboard-read; clipboard-write"
+            />
+          </div>
+
+          {/* Frame Footer */}
+          <div className="px-4 py-2.5 bg-zinc-900/80 border-t border-zinc-800 flex flex-wrap items-center justify-between text-[11px] font-mono text-zinc-400 gap-2">
+            <div className="flex items-center gap-2">
+              <Bot className="w-3.5 h-3.5 text-purple-400" />
+              <span>Orquestador Semántico (Dao et al., 2025) acoplado a FastAPI (<code className="text-emerald-400">host.docker.internal:8000</code>)</span>
+            </div>
+            <div className="text-zinc-500 text-[10px]">
+              CRISP-DM Fase 6: Despliegue de Modelos & Orquestación de Decisión Silvícola
+            </div>
+          </div>
+        </div>
+      ) : (
+        /* Main Interactive Canvas and Lateral Inspector Grid */
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+          {/* Left: Interactive Visual Graph (8 Cols) */}
+          <div className={`lg:col-span-8 p-5 rounded-xl border backdrop-blur-xl relative overflow-hidden flex flex-col justify-between min-h-[440px] transition-colors ${
+            isDark ? 'bg-zinc-950/70 border-zinc-800' : 'bg-slate-900 text-zinc-100 border-slate-700'
+          }`}>
+            {/* Canvas Sub-Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-zinc-800/80 z-10 text-xs">
             <div className="flex items-center gap-2">
               <Network className="w-4 h-4 text-emerald-400" />
               <span className="font-mono text-zinc-300 font-bold uppercase tracking-wider text-[11px]">
@@ -545,6 +645,7 @@ export const LangflowCanvasViewer: React.FC<LangflowCanvasViewerProps> = ({ regi
           </div>
         </div>
       </div>
+      )}
     </div>
   );
 };
